@@ -8,6 +8,7 @@ import {
   type ServerlessSpecCloudEnum,
 } from "@pinecone-database/pinecone";
 import { getEnv, validateEnvironmentVariables } from "./utils/util.js";
+import { scrapeGoogleDoc } from "./scraper.js"; // Ensure scraper.js exports the function
 
 import type { TextMetadata } from "./types.js";
 
@@ -79,4 +80,22 @@ export const load = async (csvPath: string, column: string) => {
 
   progressBar.stop();
   console.log(`Inserted ${documents.length} documents into index ${indexName}`);
+};
+
+export const loadFromUrl = async (url: string) => {
+  validateEnvironmentVariables();
+  const text = await scrapeGoogleDoc(url);
+  const pinecone = new Pinecone();
+
+  // Initialize the embedder and create embeddings
+  await embedder.init();
+  const embedding = await embedder.embed(text);
+
+  // Get Pinecone index details
+  const indexName = getEnv("PINECONE_INDEX");
+  const index = pinecone.index<TextMetadata>(indexName);
+
+  // Insert the embedding into the Pinecone index
+  await index.upsert([embedding]);
+  console.log(`Inserted document from ${url} into index ${indexName}`);
 };
