@@ -33,10 +33,23 @@ export const load = async (csvPath: string) => {
 
   // Map the CSV data to the desired structure
   const documents = data.map((row) => ({
-    Title: row["A"] as string, // Assuming 'A' is the header for the title column
-    URL: row["B"] as string, // Assuming 'B' is the header for the URL column
-    Text: row["C"] as string, // Assuming 'C' is the header for the text column
+    Title: row["Title"] as string, // Updated to match the new header
+    URL: row["Url"] as string, // Updated to match the new header
+    Text: row["TextContent"] as string, // Updated to match the new header
   }));
+
+  // Debugging: Log the documents array
+  console.log("Documents:", documents);
+
+  // Validate that the Text field is not null, undefined, or empty after trimming whitespace
+  const validDocuments = documents.filter(doc => doc.Text && doc.Text.trim());
+
+  // Debugging: Log the validDocuments array
+  console.log("Valid Documents:", validDocuments);
+
+  if (validDocuments.length === 0) {
+    throw new Error("No valid documents found with non-null text.");
+  }
 
   // Get index name, cloud, and region
   const indexName = getEnv("PINECONE_INDEX");
@@ -62,22 +75,22 @@ export const load = async (csvPath: string) => {
   const index = pinecone.index<TextMetadata>(indexName);
 
   // Start the progress bar
-  progressBar.start(documents.length, 0);
+  progressBar.start(validDocuments.length, 0);
 
-  // Start the batch embedding process
+  // Start the batch embedding process with an increased batch size
   await embedder.init();
   await embedder.embedBatch(
-    documents.map((doc) => doc.Text),
-    5,
+    validDocuments.map((doc) => doc.Text),
+    50, // Increased batch size
     async (embeddings) => {
       counter += embeddings.length;
       console.log(embeddings.length);
       // Whenever the batch embedding process returns a batch of embeddings, insert them into the index
       await index.upsert(
         embeddings.map((embedding, i) => ({
-          id: i.toString(),
-          values: embedding, // Change 'vector' to 'values' to match the expected type
-          metadata: { Title: documents[i].Title, URL: documents[i].URL },
+          id: (counter - embeddings.length + i).toString(), // Ensure unique IDs
+          values: embedding.values, // Access the correct property for the vector
+          metadata: { Title: validDocuments[counter - embeddings.length + i].Title, URL: validDocuments[counter - embeddings.length + i].URL, text: validDocuments[counter - embeddings.length + i].Text },
         }))
       );
       progressBar.update(counter);
@@ -85,7 +98,7 @@ export const load = async (csvPath: string) => {
   );
 
   progressBar.stop();
-  console.log(`Inserted ${documents.length} documents into index ${indexName}`);
+  console.log(`Inserted ${validDocuments.length} documents into index ${indexName}`);
 };
 
 export const loadFromUrl = async (url: string) => {

@@ -15,6 +15,11 @@ class Embedder {
 
   // Embed a single string
   async embed(text: string): Promise<PineconeRecord<TextMetadata>> {
+    if (!text) {
+      console.error("Text to embed is undefined or null");
+      throw new Error("Text to embed is undefined or null");
+    }
+
     const result = this.pipe && (await this.pipe(text));
     return {
       id: uuidv4(),
@@ -34,8 +39,16 @@ class Embedder {
   ) {
     const batches = sliceIntoChunks<string>(texts, batchSize);
     for (const batch of batches) {
+      // Log the batch to debug
+      console.log("Processing batch:", batch);
+
       const embeddings = await Promise.all(
-        batch.map((text) => this.embed(text))
+        batch.map((text) => {
+          if (!text) {
+            console.error("Found undefined or null text in batch:", batch);
+          }
+          return this.embed(text);
+        })
       );
       await onDoneBatch(embeddings);
     }

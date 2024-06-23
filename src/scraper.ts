@@ -21,12 +21,12 @@ export async function scrapeGoogleDoc(
 }
 
 // Example usage
-const documentUrl =
-  "https://docs.google.com/document/d/1NiCEEUO2-38pIVGM7nrnpGRykbbtv2xuqLoKW50ZzLw/edit";
-scrapeGoogleDoc(documentUrl).then((documentText) => {
-  if (documentText) {
-    console.log(documentText);
-  } else {
-    console.log("No document text was retrieved.");
-  }
-});
+//const documentUrl =
+//  "https://docs.google.com/document/d/1NiCEEUO2-38pIVGM7nrnpGRykbbtv2xuqLoKW50ZzLw/edit";
+//scrapeGoogleDoc(documentUrl).then((documentText) => {
+//  if (documentText) {
+//    console.log(documentText);
+//  } else {
+//    console.log("No document text was retrieved.");
+//  }
+//});

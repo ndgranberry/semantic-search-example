@@ -9,7 +9,7 @@ describe("Load", () => {
   });
 
   it("should produce error in case csv file path is incorect", async () => {
-    await expect(load("non-existing.csv", "question1")).rejects.toThrow(
+    await expect(load("non-existing.csv")).rejects.toThrow(
       "ENOENT: no such file or directory, realpath 'non-existing.csv'"
     );
   });
@@ -18,7 +18,7 @@ describe("Load", () => {
     const mockExit = createMockOnProcessExit();
 
     await expect(
-      load("./tests/data/test_small.csv", "question6")
+      load("./tests/data/test_small.csv")
     ).rejects.toThrow("process.exit: 1");
 
     expect(mockExit).toBeCalledWith(1);
@@ -29,7 +29,7 @@ describe("Load", () => {
   it("should complain if env variables are not set", async () => {
     process.env = {};
 
-    await expect(load("non-existing.csv", "question1")).rejects.toThrow(
+    await expect(load("non-existing.csv")).rejects.toThrow(
       "PINECONE_API_KEY environment variable not set"
     );
   });
