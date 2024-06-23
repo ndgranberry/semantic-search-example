@@ -8,7 +8,7 @@ import {
   type ServerlessSpecCloudEnum,
 } from "@pinecone-database/pinecone";
 import { getEnv, validateEnvironmentVariables } from "./utils/util.js";
-import { scrapeGoogleDoc } from "./scraper.js"; // Ensure scraper.js exports the function
+import { scrapeGoogleDoc } from "./scraper.js";
 
 import type { TextMetadata } from "./types.js";
 
@@ -22,23 +22,21 @@ const progressBar = new cliProgress.SingleBar(
 
 let counter = 0;
 
-export const load = async (csvPath: string, column: string) => {
+export const load = async (csvPath: string) => {
   validateEnvironmentVariables();
 
   // Get a Pinecone instance
   const pinecone = new Pinecone();
 
-  // Create a readable stream from the CSV file
-  const { data, meta } = await loadCSVFile(csvPath);
+  // Load the CSV file
+  const { data } = await loadCSVFile(csvPath);
 
-  // Ensure the selected column exists in the CSV file
-  if (!meta.fields?.includes(column)) {
-    console.error(`Column ${column} not found in CSV file`);
-    process.exit(1);
-  }
-
-  // Extract the selected column from the CSV file
-  const documents = data.map((row) => row[column] as string);
+  // Map the CSV data to the desired structure
+  const documents = data.map((row) => ({
+    Title: row["A"] as string, // Assuming 'A' is the header for the title column
+    URL: row["B"] as string, // Assuming 'B' is the header for the URL column
+    Text: row["C"] as string, // Assuming 'C' is the header for the text column
+  }));
 
   // Get index name, cloud, and region
   const indexName = getEnv("PINECONE_INDEX");
@@ -61,8 +59,6 @@ export const load = async (csvPath: string, column: string) => {
   });
 
   // Select the target Pinecone index. Passing the TextMetadata generic type parameter
-  // allows typescript to know what shape to expect when interacting with a record's
-  // metadata field without the need for additional type casting.
   const index = pinecone.index<TextMetadata>(indexName);
 
   // Start the progress bar
@@ -70,13 +66,23 @@ export const load = async (csvPath: string, column: string) => {
 
   // Start the batch embedding process
   await embedder.init();
-  await embedder.embedBatch(documents, 100, async (embeddings) => {
-    counter += embeddings.length;
-    console.log(embeddings.length);
-    // Whenever the batch embedding process returns a batch of embeddings, insert them into the index
-    await index.upsert(embeddings);
-    progressBar.update(counter);
-  });
+  await embedder.embedBatch(
+    documents.map((doc) => doc.Text),
+    5,
+    async (embeddings) => {
+      counter += embeddings.length;
+      console.log(embeddings.length);
+      // Whenever the batch embedding process returns a batch of embeddings, insert them into the index
+      await index.upsert(
+        embeddings.map((embedding, i) => ({
+          id: i.toString(),
+          values: embedding, // Change 'vector' to 'values' to match the expected type
+          metadata: { Title: documents[i].Title, URL: documents[i].URL },
+        }))
+      );
+      progressBar.update(counter);
+    }
+  );
 
   progressBar.stop();
   console.log(`Inserted ${documents.length} documents into index ${indexName}`);
@@ -89,6 +95,9 @@ export const loadFromUrl = async (url: string) => {
 
   // Initialize the embedder and create embeddings
   await embedder.init();
+  if (text === null) {
+    throw new Error("Failed to retrieve text from URL: " + url);
+  }
   const embedding = await embedder.embed(text);
 
   // Get Pinecone index details

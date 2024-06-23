@@ -1,23 +1,32 @@
-import puppeteer from "puppeteer";
+import fetch from "node-fetch";
+import cheerio from "cheerio";
 
-export async function scrapeGoogleDoc(url: string): Promise<string> {
-  const browser = await puppeteer.launch();
-  const page = await browser.newPage();
-  await page.goto(url, { waitUntil: "networkidle2" });
-
-  // Assuming the text is within the body of the document
-  const text = await page.evaluate(() => document.body.innerText);
-
-  await browser.close();
-  return text;
+export async function scrapeGoogleDoc(
+  documentUrl: string
+): Promise<string | null> {
+  try {
+    const response = await fetch(documentUrl);
+    if (response.ok) {
+      const html = await response.text();
+      const $ = cheerio.load(html);
+      return $("body").text(); // Extracts text from the <body> tag, ignoring scripts, styles, etc.
+    } else {
+      console.error(`Failed to fetch document: HTTP status ${response.status}`);
+      return null;
+    }
+  } catch (error) {
+    console.error(`Error occurred while fetching the document: ${error}`);
+    return null;
+  }
 }
 
-// Get URL from command line arguments
-const url = process.argv[2]; // The first argument is the node executable, the second is the script file name, and the third is our first actual argument
-
-if (!url) {
-  console.error("Please provide a URL as an argument");
-  process.exit(1);
-}
-
-scrapeGoogleDoc(url).then((text) => console.log(text));
+// Example usage
+const documentUrl =
+  "https://docs.google.com/document/d/1NiCEEUO2-38pIVGM7nrnpGRykbbtv2xuqLoKW50ZzLw/edit";
+scrapeGoogleDoc(documentUrl).then((documentText) => {
+  if (documentText) {
+    console.log(documentText);
+  } else {
+    console.log("No document text was retrieved.");
+  }
+});

@@ -10,7 +10,7 @@
     "build": "npm-run-all format lint && tsc",
     "start": "node build/src",
     "test": "vitest run --coverage --retry 5",
-    "dev": "ts-node src",
+    "dev": "node --loader ts-node/esm src/index.ts",
     "lint": "eslint src",
     "format": "npx prettier --write src && npx sort-package-json",
     "format:check": "npx prettier --check src"
@@ -18,9 +18,12 @@
   "dependencies": {
     "@pinecone-database/pinecone": "^2.0.0",
     "@xenova/transformers": "2.0.1",
+    "cheerio": "^1.0.0-rc.12",
     "cli-progress": "^3.12.0",
     "dotenv": "^16.0.3",
     "find-up": "^6.3.0",
+    "node": "^20.15.0",
+    "node-fetch": "^3.3.2",
     "onnxruntime-node": "^1.14.0",
     "papaparse": "^5.4.1",
     "puppeteer": "^22.12.0",
@@ -43,7 +46,7 @@
     "npm-run-all": "^4.1.5",
     "prettier": "^2.8.8",
     "rimraf": "^4.1.2",
-    "ts-node": "^10.9.1",
+    "ts-node": "^10.9.2",
     "typescript": "^5.0.4",
     "vitest": "^0.34.1"
   },
