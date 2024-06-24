@@ -87,4 +87,3 @@ if (typeof vitest === "undefined") {
   run();
 }
 /* c8 ignore end */
-

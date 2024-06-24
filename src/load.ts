@@ -42,7 +42,7 @@ export const load = async (csvPath: string) => {
   console.log("Documents:", documents);
 
   // Validate that the Text field is not null, undefined, or empty after trimming whitespace
-  const validDocuments = documents.filter(doc => doc.Text && doc.Text.trim());
+  const validDocuments = documents.filter((doc) => doc.Text && doc.Text.trim());
 
   // Debugging: Log the validDocuments array
   console.log("Valid Documents:", validDocuments);
@@ -90,7 +90,11 @@ export const load = async (csvPath: string) => {
         embeddings.map((embedding, i) => ({
           id: (counter - embeddings.length + i).toString(), // Ensure unique IDs
           values: embedding.values, // Access the correct property for the vector
-          metadata: { Title: validDocuments[counter - embeddings.length + i].Title, URL: validDocuments[counter - embeddings.length + i].URL, text: validDocuments[counter - embeddings.length + i].Text },
+          metadata: {
+            Title: validDocuments[counter - embeddings.length + i].Title,
+            URL: validDocuments[counter - embeddings.length + i].URL,
+            text: validDocuments[counter - embeddings.length + i].Text,
+          },
         }))
       );
       progressBar.update(counter);
@@ -98,7 +102,9 @@ export const load = async (csvPath: string) => {
   );
 
   progressBar.stop();
-  console.log(`Inserted ${validDocuments.length} documents into index ${indexName}`);
+  console.log(
+    `Inserted ${validDocuments.length} documents into index ${indexName}`
+  );
 };
 
 export const loadFromUrl = async (url: string) => {
