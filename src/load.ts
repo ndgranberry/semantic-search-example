@@ -34,7 +34,7 @@ export const load = async (csvPath: string) => {
     Title: row["Title"] as string,
     URL: row["URL"] as string,
     Text: row["TextContent"] as string,
-    Summary: row["Summary"] as string, // Add the Summary column
+    Summary: row["Summary"] as string,
   }));
 
   const validDocuments = documents.filter((doc) => doc.Text && doc.Text.trim());
@@ -80,12 +80,12 @@ export const load = async (csvPath: string) => {
         metadata: {
           Title: validDocuments[counter - embeddings.length + i].Title,
           URL: validDocuments[counter - embeddings.length + i].URL,
-          text: validDocuments[counter - embeddings.length + i].Text,
-          Summary: validDocuments[counter - embeddings.length + i].Summary, // Add Summary to metadata
+          text: validDocuments[counter - embeddings.length + i].Text, // Change Text to text
+          Summary: validDocuments[counter - embeddings.length + i].Summary, // Ensure Summary is included
         },
       }));
 
-      // Log the embeddings and their corresponding metadata (excluding Text)
+      // Log the embeddings and their corresponding metadata (including Summary)
       console.log(
         "Embeddings and Metadata:",
         embeddingsWithMetadata.map((e) => ({
@@ -93,6 +93,8 @@ export const load = async (csvPath: string) => {
           metadata: {
             Title: e.metadata.Title,
             URL: e.metadata.URL,
+            text: e.metadata.text,
+            Summary: e.metadata.Summary, // Log Summary
           },
         }))
       );
