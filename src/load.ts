@@ -8,8 +8,6 @@ import {
   type ServerlessSpecCloudEnum,
 } from "@pinecone-database/pinecone";
 import { getEnv, validateEnvironmentVariables } from "./utils/util.js";
-import { scrapeGoogleDoc } from "./scraper.js";
-
 import type { TextMetadata } from "./types.js";
 
 // Load environment variables from .env
@@ -28,28 +26,18 @@ export const load = async (csvPath: string) => {
   // Get a Pinecone instance
   const pinecone = new Pinecone();
 
-  // Load the CSV file
-  const { data } = await loadCSVFile(csvPath);
+  // Create a readable stream from the CSV file
+  const { data, meta } = await loadCSVFile(csvPath);
 
-  // Map the CSV data to the desired structure
+  // Extract the selected columns from the CSV file
   const documents = data.map((row) => ({
-    Title: row["Title"] as string, // Updated to match the new header
-    URL: row["Url"] as string, // Updated to match the new header
-    Text: row["TextContent"] as string, // Updated to match the new header
+    Title: row["Title"] as string,
+    URL: row["URL"] as string,
+    Text: row["TextContent"] as string,
+    Summary: row["Summary"] as string, // Add the Summary column
   }));
 
-  // Debugging: Log the documents array
-  console.log("Documents:", documents);
-
-  // Validate that the Text field is not null, undefined, or empty after trimming whitespace
   const validDocuments = documents.filter((doc) => doc.Text && doc.Text.trim());
-
-  // Debugging: Log the validDocuments array
-  console.log("Valid Documents:", validDocuments);
-
-  if (validDocuments.length === 0) {
-    throw new Error("No valid documents found with non-null text.");
-  }
 
   // Get index name, cloud, and region
   const indexName = getEnv("PINECONE_INDEX");
@@ -77,26 +65,40 @@ export const load = async (csvPath: string) => {
   // Start the progress bar
   progressBar.start(validDocuments.length, 0);
 
-  // Start the batch embedding process with an increased batch size
+  // Start the batch embedding process
   await embedder.init();
   await embedder.embedBatch(
     validDocuments.map((doc) => doc.Text),
-    50, // Increased batch size
+    50,
     async (embeddings) => {
       counter += embeddings.length;
-      console.log(embeddings.length);
-      // Whenever the batch embedding process returns a batch of embeddings, insert them into the index
-      await index.upsert(
-        embeddings.map((embedding, i) => ({
-          id: (counter - embeddings.length + i).toString(), // Ensure unique IDs
-          values: embedding.values, // Access the correct property for the vector
+
+      // Prepare the embeddings with metadata
+      const embeddingsWithMetadata = embeddings.map((embedding, i) => ({
+        id: (counter - embeddings.length + i).toString(),
+        values: embedding.values,
+        metadata: {
+          Title: validDocuments[counter - embeddings.length + i].Title,
+          URL: validDocuments[counter - embeddings.length + i].URL,
+          text: validDocuments[counter - embeddings.length + i].Text,
+          Summary: validDocuments[counter - embeddings.length + i].Summary, // Add Summary to metadata
+        },
+      }));
+
+      // Log the embeddings and their corresponding metadata (excluding Text)
+      console.log(
+        "Embeddings and Metadata:",
+        embeddingsWithMetadata.map((e) => ({
+          id: e.id,
           metadata: {
-            Title: validDocuments[counter - embeddings.length + i].Title,
-            URL: validDocuments[counter - embeddings.length + i].URL,
-            text: validDocuments[counter - embeddings.length + i].Text,
+            Title: e.metadata.Title,
+            URL: e.metadata.URL,
           },
         }))
       );
+
+      // Whenever the batch embedding process returns a batch of embeddings, insert them into the index
+      await index.upsert(embeddingsWithMetadata);
       progressBar.update(counter);
     }
   );
@@ -105,25 +107,4 @@ export const load = async (csvPath: string) => {
   console.log(
     `Inserted ${validDocuments.length} documents into index ${indexName}`
   );
-};
-
-export const loadFromUrl = async (url: string) => {
-  validateEnvironmentVariables();
-  const text = await scrapeGoogleDoc(url);
-  const pinecone = new Pinecone();
-
-  // Initialize the embedder and create embeddings
-  await embedder.init();
-  if (text === null) {
-    throw new Error("Failed to retrieve text from URL: " + url);
-  }
-  const embedding = await embedder.embed(text);
-
-  // Get Pinecone index details
-  const indexName = getEnv("PINECONE_INDEX");
-  const index = pinecone.index<TextMetadata>(indexName);
-
-  // Insert the embedding into the Pinecone index
-  await index.upsert([embedding]);
-  console.log(`Inserted document from ${url} into index ${indexName}`);
 };
